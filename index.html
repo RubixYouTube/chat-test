@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
     <style>
         body {
             background-color: #000033;
@@ -30,63 +31,46 @@
         </div>
     </div>
     <script>
-        const socket = new WebSocket('ws://[2600:8804:4d16:f400:3ce0:e9e0:635c:d53c]:8080');
+        const socket = io('http://localhost:8080'); // Update to your server's address if hosting remotely
 
-        let usersOnline = 0;
+let usersOnline = 0;
 
-        function updateUsersOnline() {
-            document.getElementById('usersOnline').innerText = `${usersOnline} users online`;
-        }
+function updateUsersOnline() {
+    document.getElementById('usersOnline').innerText = `${usersOnline} users online`;
+}
 
-        function addUser() {
-            usersOnline++;
-            updateUsersOnline();
-            socket.send(JSON.stringify({ type: 'user joined' }));
-        }
+function sendMessage() {
+    const username = document.getElementById('username').value;
+    const message = document.getElementById('message').value;
+    const color = document.getElementById('colorPicker').value;
 
-        function removeUser() {
-            usersOnline--;
-            updateUsersOnline();
-            socket.send(JSON.stringify({ type: 'user left' }));
-        }
-
-        function sendMessage() {
-            const username = document.getElementById('username').value;
-            const message = document.getElementById('message').value;
-            const color = document.getElementById('colorPicker').value;
-
-            if (username && message) {
-                const msg = {
-                    type: 'chat message',
-                    username: username,
-                    message: message,
-                    color: color
-                };
-                socket.send(JSON.stringify(msg));
-                document.getElementById('message').value = '';
-            }
-        }
-
-        document.getElementById('sendButton').addEventListener('click', sendMessage);
-
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'users online') {
-                usersOnline = data.count;
-                updateUsersOnline();
-            } else if (data.type === 'chat message') {
-                const chatLogs = document.getElementById('chatLogs');
-                const newMessage = document.createElement('div');
-                newMessage.innerHTML = `<span style="color: ${data.color};">${data.username}</span>: ${data.message}`;
-                chatLogs.appendChild(newMessage);
-                chatLogs.scrollTop = chatLogs.scrollHeight;
-            }
+    if (username && message) {
+        const msg = {
+            username: username,
+            message: message,
+            color: color
         };
+        socket.emit('chat message', msg); // Send message to server
+        document.getElementById('message').value = '';
+    }
+}
 
-        // Simulate user joining and leaving
-        addUser();
-        window.addEventListener('beforeunload', removeUser);
+document.getElementById('sendButton').addEventListener('click', sendMessage);
+
+// Receive users online count from server
+socket.on('users online', (data) => {
+    usersOnline = data.count;
+    updateUsersOnline();
+});
+
+// Receive chat message from server
+socket.on('chat message', (data) => {
+    const chatLogs = document.getElementById('chatLogs');
+    const newMessage = document.createElement('div');
+    newMessage.innerHTML = `<span style="color: ${data.color};">${data.username}</span>: ${data.message}`;
+    chatLogs.appendChild(newMessage);
+    chatLogs.scrollTop = chatLogs.scrollHeight;
+});
     </script>
 </body>
 </html>
