@@ -1,0 +1,92 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000033;
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center h-screen">
+    <div class="flex space-x-8">
+        <div class="text-blue-700">
+            <h1 class="text-4xl font-bold">-=CHAT=-</h1>
+            <p id="usersOnline" class="mt-4">0 users online</p>
+            <p class="mt-4">Enter Username</p>
+            <input type="text" id="username" placeholder="Type here.." class="mt-2 p-2 border-2 border-blue-700 bg-blue-900 text-white">
+            <p class="mt-4">Enter Color</p>
+            <input type="color" id="colorPicker" class="mt-2 p-2 border-2 border-white bg-white">
+        </div>
+        <div>
+            <h1 class="text-4xl font-bold text-blue-700">Chat Logs</h1>
+            <div id="chatLogs" class="mt-4 p-4 border-4 border-white h-64 w-96 bg-blue-900 overflow-y-auto"></div>
+            <div class="flex mt-4">
+                <input type="text" id="message" placeholder="Type to send.." class="p-2 border-2 border-gray-400 bg-gray-800 text-gray-400 flex-grow">
+                <button id="sendButton" class="ml-2 p-2 border-2 border-gray-400 bg-gray-800 text-gray-400">SEND</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const socket = new WebSocket('ws://localhost:8080'); // Replace with your WebSocket server URL
+
+        let usersOnline = 0;
+
+        function updateUsersOnline() {
+            document.getElementById('usersOnline').innerText = `${usersOnline} users online`;
+        }
+
+        function addUser() {
+            usersOnline++;
+            updateUsersOnline();
+            socket.send(JSON.stringify({ type: 'user joined' }));
+        }
+
+        function removeUser() {
+            usersOnline--;
+            updateUsersOnline();
+            socket.send(JSON.stringify({ type: 'user left' }));
+        }
+
+        function sendMessage() {
+            const username = document.getElementById('username').value;
+            const message = document.getElementById('message').value;
+            const color = document.getElementById('colorPicker').value;
+
+            if (username && message) {
+                const msg = {
+                    type: 'chat message',
+                    username: username,
+                    message: message,
+                    color: color
+                };
+                socket.send(JSON.stringify(msg));
+                document.getElementById('message').value = '';
+            }
+        }
+
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'users online') {
+                usersOnline = data.count;
+                updateUsersOnline();
+            } else if (data.type === 'chat message') {
+                const chatLogs = document.getElementById('chatLogs');
+                const newMessage = document.createElement('div');
+                newMessage.innerHTML = `<span style="color: ${data.color};">${data.username}</span>: ${data.message}`;
+                chatLogs.appendChild(newMessage);
+                chatLogs.scrollTop = chatLogs.scrollHeight;
+            }
+        };
+
+        // Simulate user joining and leaving
+        addUser();
+        window.addEventListener('beforeunload', removeUser);
+    </script>
+</body>
+</html>
